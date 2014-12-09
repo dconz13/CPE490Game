@@ -21,7 +21,10 @@ import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.io.IOException;
+import java.net.Socket;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.Scanner;
 
 public class MainClass extends Applet implements Runnable, MouseListener{
@@ -31,6 +34,7 @@ public class MainClass extends Applet implements Runnable, MouseListener{
 	private URL base;
 	private Graphics second;
 	private Image image,rock,paper,scissor,winner,loser;
+	private Socket socket;
 
 	@Override
 	public void destroy() {
@@ -70,6 +74,16 @@ public class MainClass extends Applet implements Runnable, MouseListener{
 	public void run() {
 		String player1Choice;
 		String player2Choice;
+		
+		try {
+			socket = new Socket("localhost",9001);
+		} catch (UnknownHostException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
 		
 		while(true){
 			System.out.println("Player 1 pick: ");

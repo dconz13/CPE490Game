@@ -8,6 +8,8 @@ public class RockPaperScissors {
 	public void setInputVariables(String player1, String player2){
 		player1Choice = player1;
 		player2Choice = player2;
+		
+		
 	}
 
 	private int checkWinner(){
