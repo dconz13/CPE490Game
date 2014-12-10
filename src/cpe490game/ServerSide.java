@@ -16,18 +16,23 @@ public class ServerSide {
 	
 		System.out.println("Starting game server on port " + portNumber + "...");
 		serverSocket = new ServerSocket(portNumber);
+		int globalPlayerNumber = 1;
 		
 		try{
-		while(true){
+			/*This while loop creates a new game object after 2 players have joined.
+			 *The two players are Thread objects within that game object. 
+			 *If two more players join it will create a new game object for them. 
+			 */
+		while(true){			
 		GameLoop game = new GameLoop();
-		System.out.println("Waiting on player 1...");
-		GameLoop.Player player1;
-		player1 = game.new Player(serverSocket.accept(), 1);
-		System.out.println("Player 1 connected!");
-		System.out.println("Waiting on player 2...");
-		GameLoop.Player player2;
-		player2 = game.new Player(serverSocket.accept(), 2);
-		System.out.println("Player 2 connected!");
+		System.out.println("Waiting on player " + globalPlayerNumber + "...");
+		GameLoop.Player player1 = game.new Player(serverSocket.accept(), 1);
+		System.out.println("Player " + globalPlayerNumber + " connected!");
+		globalPlayerNumber++;
+		System.out.println("Waiting on player " + globalPlayerNumber + "...");
+		GameLoop.Player player2 = game.new Player(serverSocket.accept(), 2);
+		System.out.println("Player " + globalPlayerNumber + " connected!");
+		globalPlayerNumber++;
 		
 		player1.setOpponent(player2);
 		player2.setOpponent(player1);
@@ -49,47 +54,49 @@ class GameLoop{
 		String winner;
 		int count = 0;
 		
-		private void checkWinner(String player1Choice, String player2Choice){			
+		private void checkWinner(String player1Choice, String player2Choice){	
+			//Logic for the switch variables responses: 
+			//0 = draw, 1 = player 1 wins, 2 = player 2 wins.
 			switch(player1Choice){
 			case "rock":
 				if(player2Choice.equals("rock")){
-					winner = "Draw";
+					winner = "0";
 					break;
 				}else{
 					if(player2Choice.equals("paper")){
-						winner = "Player 2 wins!";
+						winner = "2";
 						break;
 					}
 					else{
-						winner = "Player 1 wins!";
+						winner = "1";
 					}
 				}
 				break;
 			case "scissor":
 				if(player2Choice.equals("rock")){
-					winner = "Player 2 wins!";
+					winner = "2";
 					break;
 				}else{
 					if(player2Choice.equals("paper")){
-						winner = "Player 1 wins!";
+						winner = "1";
 						break;
 					}
 					else{
-						winner = "Draw";
+						winner = "0";
 					}
 				}
 				break;
 			case "paper":
 				if(player2Choice.equals("rock")){
-					winner = "Player 1 wins!";
+					winner = "1";
 					break;
 				}else{
 					if(player2Choice.equals("paper")){
-						winner = "Draw";
+						winner = "0";
 						break;
 					}
 					else{
-						winner = "Player 2 wins!";
+						winner = "2";
 					}
 				}
 				break;
@@ -99,13 +106,23 @@ class GameLoop{
 		}
 		
 		private void setPlayerChoices(String Choice,Player player){
+			System.out.println("Setting: "+ Choice + " count: "+count);
 			if(player == currentPlayer){
 				player1Choice = Choice;
+				player.playerChoiceFlag = 1;
+				player.opponent.opponentChoiceFlag = 1;
 				count++;
 			}else{
 				player2Choice = Choice;
+				player.playerChoiceFlag = 1;
+				player.opponent.opponentChoiceFlag = 1;
 				count++;
+			}
+			if(count == 2){
 				checkWinner(player1Choice,player2Choice);
+				player1Choice = player2Choice = null;
+				System.out.println("winner after check: "+ winner);
+				count = 0;
 			}
 		}
 		
@@ -116,6 +133,8 @@ class GameLoop{
 		private Player opponent;
 		private BufferedReader input;
 		private PrintWriter output;
+		public int playerChoiceFlag = 0;
+		public int opponentChoiceFlag = 0;
 		
 		public Player(Socket player, int playerNumber){
 			this.player = player;
@@ -124,7 +143,9 @@ class GameLoop{
 				//Sends a message to the client to choose. Then closes the message. 
 				input = new BufferedReader(new InputStreamReader(player.getInputStream()));
 				output = new PrintWriter(player.getOutputStream(),true);
-				output.println("player " + playerNumber + " has connected");
+				
+				//Let the client know what player number they are.
+				output.println(playerNumber);
 				
 			}catch(IOException err){
 				System.out.println("player disconnected: ");
@@ -136,36 +157,51 @@ class GameLoop{
 			this.opponent = Opponent; 
 		}
 		
+		@Override
 		public void run(){
-			//will only run once both players are connected 
+			String socketInput;
+			//will only run once both players are connected
+			output.println("Opponent connected.");
 			try{
-				output.println("Both players connected");
+				//makes sure socketInput != null
 				
 				while(true){
-					String playerChoice = input.readLine();
-					if(playerChoice.toLowerCase().equals("quit")){
+					socketInput = input.readLine();
+					System.out.println(playerNumber+ ": " + socketInput);
+					if(socketInput.toLowerCase().equals("quit")){
 						return;
-					}else{
-						setPlayerChoices(playerChoice, this);
-						if(count==2){
+					}
+					else{
+						if(playerChoiceFlag != 1){
+						setPlayerChoices(socketInput, this);
+						System.out.println("thread " + playerNumber);
+						}
+						if((playerChoiceFlag == 1 )&&(opponentChoiceFlag == 1)){
+							System.out.println("Sending winner to: " + playerNumber);
 							output.println(winner);
-							count = 0;
+							opponent.output.println(winner);
+							playerChoiceFlag = 0;
+							opponentChoiceFlag = 0;
+							opponent.playerChoiceFlag = 0;
+							opponent.playerChoiceFlag = 0;
+
+							//System.out.println("winner: " +  winner);
 						}
 					}
 				}
+				
 			}catch(IOException err){
-				err.printStackTrace();
+				System.out.println("Player " + playerNumber +" has disconnected.");
+				//err.printStackTrace();
 			}finally{
 				try {
+					System.out.println("Player " + playerNumber +" has quit. Socket Closed.");
 					player.close();
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
-		}
-		
-	
+		}	
 	}
-	
 }
